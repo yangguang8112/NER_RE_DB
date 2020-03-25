@@ -7,15 +7,15 @@ TEST_DIR=$1
 # 加载装有tensorflow-gpu的python环境
 # >>> conda init >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$(CONDA_REPORT_ERRORS=false '/home/yangguang/miniconda3/bin/conda' shell.bash hook 2> /dev/null)"
+__conda_setup="$(CONDA_REPORT_ERRORS=false '/home/yg/anaconda3/bin/conda' shell.bash hook 2> /dev/null)"
 if [ $?  -eq 0 ];  then
 \eval "$__conda_setup"
 else
-if [ -f  "/home/yangguang/miniconda3/etc/profile.d/conda.sh" ];  then
-.  "/home/yangguang/miniconda3/etc/profile.d/conda.sh"
+if [ -f  "/home/yg/anaconda3/etc/profile.d/conda.sh" ];  then
+.  "/home/yg/anaconda3/etc/profile.d/conda.sh"
 CONDA_CHANGEPS1=false conda activate base
 else
-\export PATH="/home/yangguang/miniconda3/bin:$PATH"
+\export PATH="/home/yg/anaconda3/bin:$PATH"
 fi
 fi
 unset __conda_setup

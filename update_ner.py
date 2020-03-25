@@ -61,7 +61,7 @@ def insert_re(paper_id):
     #print(type(ner_res))
     re_res = run_re(ner_res, './instance/re_dir')
     re_type = 'gene-disease'
-    db = get_db()
+    
     for re_item in re_res:
         re_begin = re_item['start']
         re_end = re_item['end']
@@ -86,10 +86,10 @@ def insert_re(paper_id):
             )
         db.commit()
     
-    return# re_res
+    return re_res
 
 if __name__ == '__main__':
-    paperid = insert_paper('../BioExtract/instance/pdf/data/antimicrobial_peptide_gene_expression/Cutting_edge_1,_25-dihydroxyvitamin_D3_is_a_direct_inducer_of_antimicrobial_peptide_gene_expression.pdf')
-    print(paperid)
-    insert_ner(paperid)
-    insert_re(paperid)
+    #paperid = insert_paper('../BioExtract/instance/pdf/data/antimicrobial_peptide_gene_expression/Cutting_edge_1,_25-dihydroxyvitamin_D3_is_a_direct_inducer_of_antimicrobial_peptide_gene_expression.pdf')
+    #print(paperid)
+    #insert_ner(paperid)
+    insert_re(1)
