@@ -1,1 +1,6 @@
 # NER_RE_DB
+需要将模型的两个文件夹model和config放到relation_extract下
+
+或许还需要手动新建一个instance目录
+
+初始化数据库使用python db.py
