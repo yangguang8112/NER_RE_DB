@@ -3,3 +3,4 @@ __pycache__
 instance/
 relation_extract/model/
 relation_extract/config/
+pdf_data/

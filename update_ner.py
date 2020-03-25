@@ -2,6 +2,49 @@ from db import get_db
 import json
 from get_re_data import run_re
 from bioNER import bioNER_run
+import pandas as pd
+import glob
+from re import sub
+
+from langdetect import detect
+from langdetect import DetectorFactory
+DetectorFactory.seed = 0
+
+# 不加括号，适用之前的版本
+ILLEGAL_CHAR = r'[\\/:*?"<>|\r\n\.]+'
+
+def loads_xlsx(xlsx_file):
+    df = pd.read_excel(xlsx_file)
+    size = len(df)
+    pdf_dir_path = xlsx_file.strip('.xlsx')
+    for index in range(size):
+        line = df.loc[index]
+        title = line['title']
+        author = line['author']
+        qoute= line['qoute']
+        pubtime = line['pubtime']
+        downloaded = line['downloaded']
+        url = line['url']
+        keyword = line['keyword']
+        if detect(title) != 'en':
+            # 把原因记录下来
+            continue
+        if downloaded:
+            pdf_name = sub(ILLEGAL_CHAR, '', title) + '.pdf'
+            if pdf_name == 'Early respiratory and ocular involvement in X-linked hypohidrotic ectodermal dysplasia.pdf':
+                continue
+            tmp = glob.glob(pdf_dir_path+'/'+pdf_name)
+            if tmp:
+                pdf_path = tmp[0]
+                ner_res = bioNER_run(pdf_path)
+                return ner_res
+            else:
+                print(pdf_dir_path+'/'+pdf_name)
+        else:
+            ner_res = None
+    print(ner_res)
+
+
 
 def insert_paper(pdf_path):
     db = get_db()
@@ -92,4 +135,6 @@ if __name__ == '__main__':
     #paperid = insert_paper('../BioExtract/instance/pdf/data/antimicrobial_peptide_gene_expression/Cutting_edge_1,_25-dihydroxyvitamin_D3_is_a_direct_inducer_of_antimicrobial_peptide_gene_expression.pdf')
     #print(paperid)
     #insert_ner(paperid)
-    insert_re(1)
+    #insert_re(1)
+    a = loads_xlsx('pdf_data/sample_pdf/ACAN-1/data/ACAN c821GA.xlsx')
+    print(a)

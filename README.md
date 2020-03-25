@@ -4,3 +4,5 @@
 或许还需要手动新建一个instance目录
 
 初始化数据库使用python db.py
+
+目前ner，re模块都没问题，只差把paper数据写入db了

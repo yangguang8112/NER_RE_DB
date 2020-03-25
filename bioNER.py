@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+#import pdfminer.high_level.extract_text as pdf2txt
 
 def txtFormat(rawtxt):
     # rawtxt为readlines的list
@@ -28,17 +29,24 @@ def txtFormat(rawtxt):
         cleantxt.append(section)
     return "".join(cleantxt)
 
-
+# 确保本地服务已开启
 def query_raw(text, url="http://localhost:8888"):
+    print("laile")
+    body_data = {"param": json.dumps({"text": text})}
     try:
-        return requests.post(url, data={'sample_text': text}, timeout=180).json()
+        return requests.post(url, data=body_data).json()
     except:
         return
 
 def bioNER_run(pdf_file):
-    rawtxt = os.popen('pdf2txt.py -d %s' % pdf_file).read()
+    #rawtxt = os.popen('pdf2txt.py -d %s' % pdf_file).read()
+    try:
+        #print("pdf2txt.py '%s'" % pdf_file)
+        #rawtxt = pdf2txt(pdf_file)
+        rawtxt = os.popen("pdf2txt.py '%s'" % pdf_file).read()
+    except:
+        return "PDF damage"
     cleantxt = txtFormat(rawtxt.split('\n'))
-    #print(cleantxt)
     return query_raw(cleantxt)
 
 
