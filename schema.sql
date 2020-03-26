@@ -11,7 +11,7 @@ CREATE TABLE paper (
   key_words TEXT,
   pdf_path TEXT,
   author TEXT,
-  quate INTEGER,
+  quote INTEGER,
   pubtime TEXT,
   ner_res TEXT NOT NULL
 );

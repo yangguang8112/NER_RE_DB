@@ -25,16 +25,21 @@ class NpEncoder(json.JSONEncoder):
 # 不加括号，适用之前的版本
 ILLEGAL_CHAR = r'[\\/:*?"<>|\r\n\.]+'
 
-def loads_xlsx(xlsx_file):
+def loads_xlsx(xlsx_file, log_path):
     error_info = []
     paper_ids = []
     df = pd.read_excel(xlsx_file)
     size = len(df)
     pdf_dir_path = xlsx_file.strip('.xlsx')
+    logname = xlsx_file.strip('.xlsx').split('/')[-1]
     db = get_db()
     for index in range(size):
         line = df.loc[index]
         line_dict = dict(line)
+        if line_dict['downloaded']:
+            line_dict['downloaded'] = 1
+        else:
+            line_dict['downloaded'] = 0
         title = line['title']
         author = line['author']
         qoute= line['qoute']
@@ -42,19 +47,22 @@ def loads_xlsx(xlsx_file):
         downloaded = line['downloaded']
         url = line['url']
         keyword = line['keyword']
+        e_info = dict(line)
+        if e_info['downloaded']:
+            e_info['downloaded'] = 1
+        else:
+            e_info['downloaded'] = 0
         if detect(title) != 'en':
             # 将paper信息加入error列表
-            e_info = dict(line)
             e_info['info'] = 'The paper is not english.'
             error_info.append(e_info)
             continue
         check_repeat = db.execute(
             'SELECT * FROM paper'
-            ' WHERE title = ? AND url = ?',
+            ' WHERE title = ? AND paper_url = ?',
             (title, url)
         ).fetchone()
         if check_repeat:
-            e_info = dict(line)
             e_info['info'] = 'This paper already exists in db.'
             error_info.append(e_info)
             continue
@@ -68,7 +76,6 @@ def loads_xlsx(xlsx_file):
                 pdf_path = tmp[0]
                 ner_res = bioNER_run(pdf_path)
                 if ner_res == "PDF damage":
-                    e_info = dict(line)
                     e_info['info'] = 'PDF damage'
                     error_info.append(e_info)
                     continue
@@ -80,15 +87,18 @@ def loads_xlsx(xlsx_file):
                     paper_ids.append(paper_id)
                 else:
                     print("NER error please check paper or program")
-                    e_info = dict(line)
                     e_info['info'] = 'NER error'
                     error_info.append(e_info)
             else:
-                print("Warning:NOT FOUND "pdf_dir_path+'/'+pdf_name)
-                e_info = dict(line)
+                print("Warning:NOT FOUND "+pdf_dir_path+'/'+pdf_name)
                 e_info['info'] = 'Not found the pdf file'
                 error_info.append(e_info)
-    return error_info, paper_ids
+    error_info = json.dumps(error_info, cls=NpEncoder)
+    with open(log_path+'/'+logname+'_log.json', 'w') as lj:
+        lj.write(error_info)
+    with open(log_path + '/'+logname+'_paper.ids','w') as pi:
+        pi.write(json.dumps(paper_ids))
+    return paper_ids
 
 
 
@@ -96,9 +106,10 @@ def insert_paper(p_info):
     db = get_db()
     # 插入数据
     db.execute(
-        'INSERT INTO paper (title, downloaded, paper_url, key_words, pdf_path, author, quate, pubtime, ner_res)'
+        'INSERT INTO paper (title, downloaded, paper_url, key_words, pdf_path, author, quote, pubtime, ner_res)'
         ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        (p_info['title'], p_info['downloaded'], p_info['url'], p_info['keyword'], p_info['pdf_path'], p_info['author'], p_info['quate'], p_info['pubtime'], p_info['ner_res'])
+        # excel 中quote写错
+        (p_info['title'], p_info['downloaded'], p_info['url'], p_info['keyword'], p_info['pdf_path'], p_info['author'], p_info['qoute'], p_info['pubtime'], p_info['ner_res'])
     )
     db.commit()
     # 此方法返回id查询效率低，是通过比较所有数据得到的结果，另外无法做并发，是全局的max
@@ -170,11 +181,11 @@ def insert_re(paper_id):
     
     return re_res
 
-def main(xlsx_file, log_path):
-    error_info, paper_ids = loads_xlsx(xlsx_file)
-    error_info = json.dumps(error_info, cls=NpEncoder)
-    with open(log_path+'/log.json', 'w') as lj:
-        lj.write(error_info)
+
+
+def run_ner_re(paper_ids_file):
+    with open(paper_ids_file, 'r') as pif:
+        paper_ids = json.loads(pif.read())
     for paper_id in paper_ids:
         insert_ner(paper_id)
         insert_re(paper_id)
@@ -190,4 +201,4 @@ if __name__ == '__main__':
     import sys
     xlsx_file = sys.argv[1]
     log_path = sys.argv[2]
-    main(xlsx_file, log_path)
+    paperids = loads_xlsx(xlsx_file, log_path)
