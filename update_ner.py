@@ -125,7 +125,8 @@ def insert_ner(paper_id):
         ' WHERE id = ?',
         (paper_id,)
     ).fetchone()[0]
-    # 等下再写
+    if ner_res == '[{"error": "empty text"}]':
+        return
     ner_res = json.loads(ner_res)
     text = ner_res['text']
     denotations = ner_res['denotations']
@@ -150,6 +151,8 @@ def insert_re(paper_id):
         ' WHERE id = ?',
         (paper_id,)
     ).fetchone()[0]
+    if ner_res == '[{"error": "empty text"}]':
+        return
     text = json.loads(ner_res)['text']
     #print(type(ner_res))
     re_res = run_re(ner_res, './instance/re_dir')
