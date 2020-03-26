@@ -43,7 +43,7 @@ def bioNER_run(pdf_file):
     try:
         #print("pdf2txt.py '%s'" % pdf_file)
         #rawtxt = pdf2txt(pdf_file)
-        rawtxt = os.popen("pdf2txt.py '%s'" % pdf_file).read()
+        rawtxt = os.popen("pdf2txt.py -m 15 '%s'" % pdf_file).read()
     except:
         return "PDF damage"
     cleantxt = txtFormat(rawtxt.split('\n'))
