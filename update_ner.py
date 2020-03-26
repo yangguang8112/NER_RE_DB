@@ -3,6 +3,7 @@ import json
 from get_re_data import run_re
 from bioNER import bioNER_run
 import pandas as pd
+import numpy as np
 import glob
 from re import sub
 
@@ -10,15 +11,30 @@ from langdetect import detect
 from langdetect import DetectorFactory
 DetectorFactory.seed = 0
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
+
 # 不加括号，适用之前的版本
 ILLEGAL_CHAR = r'[\\/:*?"<>|\r\n\.]+'
 
 def loads_xlsx(xlsx_file):
+    error_info = []
+    paper_ids = []
     df = pd.read_excel(xlsx_file)
     size = len(df)
     pdf_dir_path = xlsx_file.strip('.xlsx')
+    db = get_db()
     for index in range(size):
         line = df.loc[index]
+        line_dict = dict(line)
         title = line['title']
         author = line['author']
         qoute= line['qoute']
@@ -27,9 +43,23 @@ def loads_xlsx(xlsx_file):
         url = line['url']
         keyword = line['keyword']
         if detect(title) != 'en':
-            # 把原因记录下来
+            # 将paper信息加入error列表
+            e_info = dict(line)
+            e_info['info'] = 'The paper is not english.'
+            error_info.append(e_info)
+            continue
+        check_repeat = db.execute(
+            'SELECT * FROM paper'
+            ' WHERE title = ? AND url = ?',
+            (title, url)
+        ).fetchone()
+        if check_repeat:
+            e_info = dict(line)
+            e_info['info'] = 'This paper already exists in db.'
+            error_info.append(e_info)
             continue
         if downloaded:
+            # NER
             pdf_name = sub(ILLEGAL_CHAR, '', title) + '.pdf'
             if pdf_name == 'Early respiratory and ocular involvement in X-linked hypohidrotic ectodermal dysplasia.pdf':
                 continue
@@ -37,29 +67,38 @@ def loads_xlsx(xlsx_file):
             if tmp:
                 pdf_path = tmp[0]
                 ner_res = bioNER_run(pdf_path)
-                return ner_res
+                if ner_res == "PDF damage":
+                    e_info = dict(line)
+                    e_info['info'] = 'PDF damage'
+                    error_info.append(e_info)
+                    continue
+                elif ner_res:
+                    line_dict['pdf_path'] = pdf_path
+                    line_dict['ner_res'] = json.dumps(ner_res)
+                    # 插入数据库
+                    paper_id = insert_paper(line_dict)
+                    paper_ids.append(paper_id)
+                else:
+                    print("NER error please check paper or program")
+                    e_info = dict(line)
+                    e_info['info'] = 'NER error'
+                    error_info.append(e_info)
             else:
-                print(pdf_dir_path+'/'+pdf_name)
-        else:
-            ner_res = None
-    print(ner_res)
+                print("Warning:NOT FOUND "pdf_dir_path+'/'+pdf_name)
+                e_info = dict(line)
+                e_info['info'] = 'Not found the pdf file'
+                error_info.append(e_info)
+    return error_info, paper_ids
 
 
 
-def insert_paper(pdf_path):
+def insert_paper(p_info):
     db = get_db()
-    # 暂时用来做测试数据，真实情况是从pdf读取然后做ner
-    raw = db.execute(
-        'SELECT * FROM ner_result'
-        ' WHERE id = 384'
-    ).fetchall()[0]
-    # 上面的raw应该从真实的excel中获取
-    ner_res = bioNER_run(pdf_path)
     # 插入数据
     db.execute(
         'INSERT INTO paper (title, downloaded, paper_url, key_words, pdf_path, author, quate, pubtime, ner_res)'
         ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        (raw['title'], raw['downloaded'], raw['paper_url'], raw['key_words'], raw['pdf_path'], raw['author'], raw['quate'], raw['pubtime'], json.dumps(ner_res))
+        (p_info['title'], p_info['downloaded'], p_info['url'], p_info['keyword'], p_info['pdf_path'], p_info['author'], p_info['quate'], p_info['pubtime'], p_info['ner_res'])
     )
     db.commit()
     # 此方法返回id查询效率低，是通过比较所有数据得到的结果，另外无法做并发，是全局的max
@@ -131,10 +170,24 @@ def insert_re(paper_id):
     
     return re_res
 
+def main(xlsx_file, log_path):
+    error_info, paper_ids = loads_xlsx(xlsx_file)
+    error_info = json.dumps(error_info, cls=NpEncoder)
+    with open(log_path+'/log.json', 'w') as lj:
+        lj.write(error_info)
+    for paper_id in paper_ids:
+        insert_ner(paper_id)
+        insert_re(paper_id)
+    
+
 if __name__ == '__main__':
     #paperid = insert_paper('../BioExtract/instance/pdf/data/antimicrobial_peptide_gene_expression/Cutting_edge_1,_25-dihydroxyvitamin_D3_is_a_direct_inducer_of_antimicrobial_peptide_gene_expression.pdf')
     #print(paperid)
     #insert_ner(paperid)
     #insert_re(1)
-    a = loads_xlsx('pdf_data/sample_pdf/ACAN-1/data/ACAN c821GA.xlsx')
-    print(a)
+    #a = loads_xlsx('pdf_data/sample_pdf/ACAN-1/data/ACAN c821GA.xlsx')
+    #print(a)
+    import sys
+    xlsx_file = sys.argv[1]
+    log_path = sys.argv[2]
+    main(xlsx_file, log_path)

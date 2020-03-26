@@ -31,7 +31,7 @@ def txtFormat(rawtxt):
 
 # 确保本地服务已开启
 def query_raw(text, url="http://localhost:8888"):
-    print("laile")
+    print("Runing NER")
     body_data = {"param": json.dumps({"text": text})}
     try:
         return requests.post(url, data=body_data).json()
