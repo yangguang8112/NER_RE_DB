@@ -5,3 +5,4 @@ relation_extract/model/
 relation_extract/config/
 pdf_data/
 tmpscript/
+nohup.out
