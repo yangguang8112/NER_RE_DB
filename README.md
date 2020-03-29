@@ -1,8 +1,12 @@
 # NER_RE_DB
-需要将模型的两个文件夹model和config放到relation_extract下
 
-或许还需要手动新建一个instance目录
+git clone 这个仓库
 
-初始化数据库使用python db.py
+然后下载http://60.205.203.207:8081/instance/ner_re.sqlite数据库文件到仓库内的instance目录下，没有就新建一个
 
-目前ner，re模块都没问题，只差把paper数据写入db了
+run_paper.py和run_ner_re.py分别是往数据库中插入paper信息，对paper内容做ner标注以及对ner标注做关系抽提
+
+
+做re之前需要将模型的两个文件夹model和config放到relation_extract下
+
+初始化数据库使用python db.py（一般用不到）
