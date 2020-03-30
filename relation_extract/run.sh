@@ -20,7 +20,7 @@ fi
 fi
 unset __conda_setup
 # <<< conda init <<<
-conda activate biobert
+conda activate bert
 
 python ./relation_extract/run_re.py --task_name=$TASK_NAME --do_train=false --do_eval=false --do_predict=true \
                                             --vocab_file=$BERT_DIR/vocab.txt \
