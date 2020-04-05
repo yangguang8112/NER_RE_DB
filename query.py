@@ -15,7 +15,18 @@ def query_re(keyword):
         for resone in res:
             print(resone['title']+'|'+resone['re_content'])
 
-
+def query_ner(keyword):
+    db = get_db()
+    res = db.execute(
+        'SELECT NER.*, paper.title FROM NER'
+        ' LEFT JOIN paper on NER.paper_id = paper.id'
+        ' WHERE ner_name = ?',
+        (keyword,)
+    ).fetchall()
+    if res:
+        for resone in res:
+            print(resone['id'])
 
 if __name__ == '__main__':
     query_re('PDA')
+    query_ner('c.506G>A')

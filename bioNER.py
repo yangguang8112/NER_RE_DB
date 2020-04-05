@@ -2,6 +2,9 @@ import requests
 import json
 import os
 #import pdfminer.high_level.extract_text as pdf2txt
+import scispacy
+import spacy
+nlp = spacy.load("en_core_sci_sm")
 
 def txtFormat(rawtxt):
     # rawtxt为readlines的list
@@ -56,4 +59,14 @@ if __name__ == '__main__':
     pdf_file = sys.argv[1]
     rawtxt = os.popen('pdf2txt.py -d %s' % pdf_file).read()
     cleantxt = txtFormat(rawtxt.split('\n'))
-    print(bioNER_run(pdf_file))
+    senten = nlp(cleantxt)
+    a = list(senten.sents)
+    print(a[0])
+    he = ''
+    for i in a[:10]:
+        he += i
+    b = list(nlp(he).sents)
+    if a[:10] == b:
+        print("shi dui de")
+    else:
+        print("xing bu tong")

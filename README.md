@@ -78,10 +78,15 @@ def query_re(keyword):
         for resone in res:
             print(resone['title']+'|'+resone['re_content'])
 ```
+```sql
+sqlite> SELECT NER.*, paper.title FROM NER 
+        LEFT JOIN paper on NER.paper_id = paper.id
+        WHERE ner_name = "c.506G>A";
+```
+
 查询脚本更新中，这也是本仓库后续重点更新部分。
 
 可以根据数据库的表结构做一些满足自己需求的查询。
-
 
 
 ### 数据库构建
