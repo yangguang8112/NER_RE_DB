@@ -3,17 +3,15 @@ import json
 #from nltk import sent_tokenize
 import os
 import sys
+import scispacy
+import spacy
+
 
 def sentence_split(str_centence):
-    list_ret = list()
-    for s_str in str_centence.split('.'):
-        if '?' in s_str:
-            list_ret.extend(s_str.split('?'))
-        elif '!' in s_str:
-            list_ret.extend(s_str.split('!'))
-        else:
-            list_ret.append(s_str)
-    return list_ret
+    nlp = spacy.load("en_core_sci_sm")
+    doc = nlp(str_centence)
+    sentence_list = [str(i) for i in list(doc.sents)]
+    return sentence_list
 
 def build_re_file(res_ner, test_path):
     db = get_db()
@@ -22,14 +20,24 @@ def build_re_file(res_ner, test_path):
     res_ner = json.loads(res_ner)
     #tokens = sent_tokenize(res_ner['text'])
     # 这里有问题，用nltk会出现句号前有没有空格两种但是无法分辨导致后面index混乱，现在只用暴力分句会把很多句子分成两半
-    tokens = sentence_split(res_ner['text'])
+    full_text = res_ner['text']
+    #print(full_text.find('Reference'))
+    tokens = sentence_split(full_text)
+    #print(res_ner['text'])
     denotations = res_ner['denotations']
     start, end = 0, 0
     text_dict = []
     for token in tokens:
-        start = end
-        # 这里因为前面的nltk分句把每个句子前的空格给去掉了,所以加回来
-        end += len(token) + 1
+        #print(end)
+        #print(token)
+        # 分句的过程中会除掉一些中间的空格，所以需要判断下一句的最开始是不是被去掉了
+        while True:
+            if token[0] == full_text[end]:
+                start = end
+                break
+            end += 1
+        end += len(token)
+        #print(full_text[start:end])
         text_dict.append({'start':start,'end':end,'token':token,'flag':0})
     check_index = 0
     for ner in denotations:
@@ -127,6 +135,17 @@ def run_re(res_ner, test_path):
             )
     db.commit()
     '''
+
+def testGetdata(paper_id):
+    db = get_db()
+    paper_json = db.execute(
+                'SELECT *'
+                ' FROM paper'
+                ' WHERE id = ?',
+                (paper_id,)
+                ).fetchone()
+    res_ner = paper_json['ner_res']
+    return res_ner
     
 
 
@@ -134,6 +153,9 @@ if __name__ == '__main__':
     ner_id = int(sys.argv[1])
     test_path = sys.argv[2]
     os.system('mkdir -p %s' % test_path)
-    check = build_re_file(ner_id, test_path)
+    ner_res = testGetdata(ner_id)
+    
+    #print(ner_res)
+    check = build_re_file(ner_res, test_path)
     if check:
-        run_re(ner_id, test_path)
+        run_re(ner_res, test_path)

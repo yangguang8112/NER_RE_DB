@@ -2,9 +2,6 @@ import requests
 import json
 import os
 #import pdfminer.high_level.extract_text as pdf2txt
-import scispacy
-import spacy
-nlp = spacy.load("en_core_sci_sm")
 
 def txtFormat(rawtxt):
     # rawtxt为readlines的list
@@ -20,12 +17,12 @@ def txtFormat(rawtxt):
         if rawtxt[i] == '' or rawtxt[i] == '\n':
             continue
         if rawtxt[i+1] == '' or rawtxt[i+1] == '\n':
-            section += rawtxt[i]
+            section += rawtxt[i].strip()
             cleantxt.append(section)
             section = ''
             flag = 0
             continue
-        section += rawtxt[i].strip('\n') + ' '
+        section += rawtxt[i].strip('\n').strip() + ' '
         flag = 1
     if flag == 1:
         section += rawtxt[-1]
@@ -59,14 +56,31 @@ if __name__ == '__main__':
     pdf_file = sys.argv[1]
     rawtxt = os.popen('pdf2txt.py -d %s' % pdf_file).read()
     cleantxt = txtFormat(rawtxt.split('\n'))
+    #print(cleantxt)
+    nlp = spacy.load("en_core_sci_sm")
     senten = nlp(cleantxt)
-    a = list(senten.sents)
-    print(a[0])
-    he = ''
-    for i in a[:10]:
-        he += i
+    #a = list(senten.sents)
+    a = [str(i) for i in senten.sents]
+    he = "".join(a)
     b = list(nlp(he).sents)
-    if a[:10] == b:
+    b = [str(i) for i in b]
+    print((len(a),len(b)))
+    c = cleantxt.split(". ")
+    print(len(c))
+    '''
+    for i in range(len(a)):
+        if a[i] != b[i]:
+            print(a[i])
+            print("++++++++++++++++++++")
+            print(b[i])
+    
+    if a == b:
         print("shi dui de")
     else:
+        print(type(a[0]))
+        print(type(b[0]))
         print("xing bu tong")
+        print(a[:5])
+        print("++++++++++++++++++++")
+        print(b[:5])
+'''

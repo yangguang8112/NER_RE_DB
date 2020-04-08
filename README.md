@@ -94,3 +94,9 @@ run_paper.py和run_ner_re.py分别是往数据库中插入paper信息，对paper
 做re之前需要将模型的两个文件夹model和config放到relation_extract下。
 初始化数据库使用python db.py（一般用不到）。
 
+#### 新增spacy进行断句
+```shell
+pip install scispacy
+pip install <Model URL>
+```
+

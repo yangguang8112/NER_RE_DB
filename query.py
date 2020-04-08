@@ -1,6 +1,15 @@
 from db import get_db
 import json
 
+class Query_db(object):
+    def 
+
+
+
+
+
+
+
 def query_re(keyword):
     db = get_db()
     res = db.execute(
