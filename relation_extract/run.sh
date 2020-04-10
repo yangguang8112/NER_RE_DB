@@ -7,12 +7,13 @@ TEST_DIR=$1
 # 加载装有tensorflow-gpu的python环境
 # >>> conda init >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$(CONDA_REPORT_ERRORS=false '/home/yg/anaconda3/bin/conda' shell.bash hook 2> /dev/null)"
+CONDA_PATH=/home/yangguang/miniconda3
+__conda_setup="$(CONDA_REPORT_ERRORS=false $CONDA_PATH'/bin/conda' shell.bash hook 2> /dev/null)"
 if [ $?  -eq 0 ];  then
 \eval "$__conda_setup"
 else
-if [ -f  "/home/yg/anaconda3/etc/profile.d/conda.sh" ];  then
-.  "/home/yg/anaconda3/etc/profile.d/conda.sh"
+if [ -f  "$CONDA_PATH/etc/profile.d/conda.sh" ];  then
+.  "$CONDA_PATH/etc/profile.d/conda.sh"
 CONDA_CHANGEPS1=false conda activate base
 else
 \export PATH="/home/yg/anaconda3/bin:$PATH"
@@ -20,7 +21,7 @@ fi
 fi
 unset __conda_setup
 # <<< conda init <<<
-conda activate bert
+conda activate biobert
 
 python ./relation_extract/run_re.py --task_name=$TASK_NAME --do_train=false --do_eval=false --do_predict=true \
                                             --vocab_file=$BERT_DIR/vocab.txt \
