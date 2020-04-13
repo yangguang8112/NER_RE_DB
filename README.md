@@ -100,3 +100,8 @@ pip install scispacy
 pip install <Model URL>
 ```
 
+
+
+
+pip install langdetect
+

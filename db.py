@@ -1,8 +1,8 @@
 import sqlite3
 
-def get_db():
+def get_db(sql_file='./instance/ner_re.sqlite'):
     db = sqlite3.connect(
-            "./instance/ner_re.sqlite",
+            sql_file,
             detect_types=sqlite3.PARSE_DECLTYPES
         )
     db.row_factory = sqlite3.Row
