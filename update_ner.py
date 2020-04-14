@@ -33,8 +33,7 @@ def from_sql(sql_file, pdf_data_path, log_path):
     paper_list = input_db.execute(
             'SELECT * FROM paper'
         ).fetchall()
-    print(paper_list[0]['title'])
-    
+    #print(paper_list[0]['title'])
     db = get_db()
     for paper in paper_list:
         e_info = dict(paper)
@@ -44,7 +43,7 @@ def from_sql(sql_file, pdf_data_path, log_path):
             ' WHERE title = ? AND paper_url = ?',
             (paper['title'], paper['paper_url'])
         ).fetchone()
-        if detect(title) != 'en':
+        if detect(paper['title']) != 'en':
             # 将paper信息加入error列表
             e_info['info'] = 'The paper is not english.'
             error_info.append(e_info)
@@ -56,6 +55,8 @@ def from_sql(sql_file, pdf_data_path, log_path):
         if paper['downloaded'] == 'True':
             pdf_file = os.path.join(pdf_data_path, paper['pdf_path'].split('/data/')[1])
             if os.path.exists(pdf_file):
+                print("running ner for :" + pdf_file)
+                paper['pdf_path'] = pdf_file
                 ner_res = bioNER_run(pdf_file)
                 if ner_res == "PDF damage":
                     e_info['info'] = 'PDF damage'
@@ -71,13 +72,13 @@ def from_sql(sql_file, pdf_data_path, log_path):
                     e_info['info'] = 'NER error'
                     error_info.append(e_info)
             else:
-                print("Warning:NOT FOUND "+pdf_dir_path+'/'+pdf_name)
+                print("Warning:NOT FOUND "+pdf_file)
                 e_info['info'] = 'Not found the pdf file'
                 error_info.append(e_info)
     error_info = json.dumps(error_info, cls=NpEncoder)
-    with open(log_path+'/'+logname+'_log.json', 'w') as lj:
+    with open(log_path+'/log.json', 'w') as lj:
         lj.write(error_info)
-    with open(log_path + '/'+logname+'_paper.ids','w') as pi:
+    with open(log_path + '/paper.ids','w') as pi:
         pi.write(json.dumps(paper_ids))
     return paper_ids
     
