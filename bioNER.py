@@ -46,7 +46,9 @@ def bioNER_run(pdf_file):
         rawtxt = os.popen("pdf2txt.py -m 15 '%s'" % pdf_file).read()
     except:
         return "PDF damage"
+    #print("get raw")
     cleantxt = txtFormat(rawtxt.split('\n'))
+    #print("get_clean")
     return query_raw(cleantxt)
 
 
