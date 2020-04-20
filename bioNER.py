@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-#import pdfminer.high_level.extract_text as pdf2txt
+#from pdfminer.high_level import extract_text as pdf2txt
 
 def txtFormat(rawtxt):
     # rawtxt为readlines的list
