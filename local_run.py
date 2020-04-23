@@ -33,7 +33,7 @@ class NER(object):
         cur_thread_name = threading.current_thread().getName()
         # 准备写批量的
         # 初步准备用数据库，输入数据库地址和要处理的id段默认全部，先批量把pdf转成文本putator格式存到第一个的输入目录里
-        paper_info = query_paper(db_path, paper_ids=(4,6))
+        paper_info = query_paper(db_path, paper_ids=(7,10))
         # 没有判断去重复
         for paper in paper_info:
             if paper['downloaded'] == 'True':
@@ -59,6 +59,8 @@ class NER(object):
         result_dict = self.tag_entities(
             cur_thread_name, is_raw_text=True, reuse=False)
         # 使用paper_info找到bern的结果后插入到数据库中
+        with open('paper_info.list','w') as pil:
+            pil.write(json.dumps(paper_info))
         return paper_info
     
     def preprocess_input(self, text, cur_thread_name):
@@ -191,6 +193,8 @@ class NER(object):
         # Normalization models
         # 这里需要把load_dict.sh里的三个python脚本和两个jar全部run起来才跑的通
         os.system('sh load_dicts.sh')
+        # 这里需要等服务启动起来后在跑，所以等一分钟
+        time.sleep(60)
         normalization_time = 0.
         new_tagged_docs_list = []
         for tagged_docs, num_entities in tagged_docs_list:
@@ -241,7 +245,7 @@ def biobert_recognize(stm_dict, dict_list, is_raw_text, cur_thread_name):
                                                  is_raw_text=is_raw_text,
                                                  thread_id=cur_thread_name)
         if res is None:
-            print("dao zhe lai le##################")
+            #print("这里可能会报一些 Found an error: list index out of range 之类的.......先放着")
             return None, 0
 
         num_filtered_species_per_doc = filter_entities(res, is_raw_text)
