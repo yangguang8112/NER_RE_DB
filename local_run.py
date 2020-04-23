@@ -14,9 +14,10 @@ import tensorflow as tf
 import threading
 import hashlib
 import os
+import glob
 from pdfminer.high_level import extract_text as pdf2txt
 from bioNER import txtFormat
-from db import get_db
+from query import query_paper
 
 
 def get_pdf_rawdata(pdf_file, maxpages=15):
@@ -28,17 +29,38 @@ class NER(object):
     stm_dict = None
     normalizer = None
 
-    def run_pipeline(self, pdf_file):
+    def run_pipeline(self, db_path, pdf_data_path):
+        cur_thread_name = threading.current_thread().getName()
         # 准备写批量的
         # 初步准备用数据库，输入数据库地址和要处理的id段默认全部，先批量把pdf转成文本putator格式存到第一个的输入目录里
-        cur_thread_name = threading.current_thread().getName()
-        raw_text = get_pdf_rawdata(pdf_file)
-        text = self.preprocess_input(raw_text, cur_thread_name)
+        paper_info = query_paper(db_path, paper_ids=(4,6))
+        # 没有判断去重复
+        for paper in paper_info:
+            if paper['downloaded'] == 'True':
+                pdf_file = os.path.join(pdf_data_path, paper['pdf_path'].split('/data/')[1])
+                if os.path.exists(pdf_file):
+                    paper['pdf_path'] = pdf_file
+                    # run pdf2txt text2pub 将paper转化成pub格式存在Gnorm的输入目录下，并返回hash村到paper list里
+                    try:
+                        raw_text = get_pdf_rawdata(pdf_file)
+                    except:
+                        print(pdf_file)
+                        print("此pdf损坏")
+                        paper['ner_res'] = "PDF damage"
+                        continue
+                    text = self.preprocess_input(raw_text, cur_thread_name)
+                    text_hash = self.text2pub(text, cur_thread_name)
+                    paper['ner_res'] = text_hash
+                else:
+                    print("严重错误 找不到pdf文件")
+                    return
+        #print(paper_info)
+        # 开始跑tagger
         result_dict = self.tag_entities(
-            text, cur_thread_name, is_raw_text=True, reuse=False)
-        
-        return result_dict
-
+            cur_thread_name, is_raw_text=True, reuse=False)
+        # 使用paper_info找到bern的结果后插入到数据库中
+        return paper_info
+    
     def preprocess_input(self, text, cur_thread_name):
         if '\n' in text:
             print(datetime.now().strftime(self.stm_dict['time_format']),
@@ -66,10 +88,7 @@ class NER(object):
 
         return text
     
-    def tag_entities(self, text, cur_thread_name, is_raw_text, reuse=False):
-        assert self.stm_dict is not None
-        get_start_t = time.time()
-        elapsed_time_dict = dict()
+    def text2pub(self, text, cur_thread_name):
         n_ascii_letters = 0
         for l in text:
             if l not in string.ascii_letters:
@@ -82,27 +101,10 @@ class NER(object):
         text_hash = hashlib.sha224(text.encode('utf-8')).hexdigest()
         print(datetime.now().strftime(self.stm_dict['time_format']),
               '[{}] text_hash: {}'.format(cur_thread_name, text_hash))
-
-        bern_output_path = './output/bern_demo_{}.json'.format(text_hash)
-
-        if reuse and os.path.exists(bern_output_path):
-            print(datetime.now().strftime(self.stm_dict['time_format']),
-                  '[{}] Found prev. output'.format(cur_thread_name))
-            with open(bern_output_path, 'r', encoding='utf-8') as f_out:
-                return json.load(f_out)
-
+        
         home_gnormplus = self.stm_dict['gnormplus_home']
         input_gnormplus = os.path.join(home_gnormplus, 'input',
                                        '{}.PubTator'.format(text_hash))
-        output_gnormplus = os.path.join(home_gnormplus, 'output',
-                                        '{}.PubTator'.format(text_hash))
-
-        home_tmvar2 = self.stm_dict['tmvar2_home']
-        input_dir_tmvar2 = os.path.join(home_tmvar2, 'input')
-        input_tmvar2 = os.path.join(input_dir_tmvar2,
-                                    '{}.PubTator'.format(text_hash))
-        output_tmvar2 = os.path.join(home_tmvar2, 'output',
-                                     '{}.PubTator.PubTator'.format(text_hash))
 
         # Write input str to a .PubTator format file
         with open(input_gnormplus, 'w', encoding='utf-8') as f:
@@ -110,11 +112,28 @@ class NER(object):
             f.write(text_hash + '|t|')
             f.write('\n')
             f.write(text_hash + '|a|' + text + '\n\n')
+
+        return text_hash
+    
+    def tag_entities(self, cur_thread_name, is_raw_text, reuse=False):
+        assert self.stm_dict is not None
+        get_start_t = time.time()
+        elapsed_time_dict = dict()
+
+        home_gnormplus = self.stm_dict['gnormplus_home']
+        input_gnormplus = os.path.join(home_gnormplus, 'input')
+        output_gnormplus = os.path.join(home_gnormplus, 'output')
+
+        home_tmvar2 = self.stm_dict['tmvar2_home']
+        input_dir_tmvar2 = os.path.join(home_tmvar2, 'input')
+        input_tmvar2 = os.path.join(input_dir_tmvar2)
+        output_tmvar2 = os.path.join(home_tmvar2, 'output')
         
         # Run GNormPlus
         gnormplus_start_time = time.time()
         # 这里肯定要修改================================================
-        shell_script = '''cd GNormPlusJava;java -Xmx12G -Xms12G -jar GNormPlus.jar input output setup.txt;cd -;'''
+        shell_script = '''cd GNormPlusJava;java -Xmx12G -Xms12G -jar GNormPlus.jar input output setup.txt;cd -;'''# % (input_gnormplus, output_gnormplus)
+        print(shell_script)
         os.system(shell_script)
         gnormplus_time = time.time() - gnormplus_start_time
         elapsed_time_dict['gnormplus'] = round(gnormplus_time, 3)
@@ -128,7 +147,7 @@ class NER(object):
         # Run tmVar 2.0
         tmvar2_start_time = time.time()
         # 这里肯定要修改================================================
-        shell_script = '''cd tmVarJava; java -Xmx12G -Xms12G -jar tmVar.jar ../GNormPlusJava/output output; cd -;'''
+        shell_script = '''cd tmVarJava; java -Xmx12G -Xms12G -jar tmVar.jar ../GNormPlusJava/input output; cd -;'''# % (input_tmvar2, output_tmvar2)
         os.system(shell_script)
         tmvar2_time = time.time() - tmvar2_start_time
         elapsed_time_dict['tmvar2'] = round(tmvar2_time, 3)
@@ -137,7 +156,8 @@ class NER(object):
               .format(cur_thread_name, tmvar2_time))
         
         # Convert tmVar 2.0 outputs (?.PubTator.PubTator) to python dict
-        dict_list = pubtator2dict_list(output_tmvar2, is_raw_text=True)
+        file_list = glob.glob(output_tmvar2+"/*.PubTator.PubTator")
+        dict_list = [pubtator2dict_list(i, is_raw_text=True) for i in file_list]
 
         # 至此所有的结果已经到dict_list了
 
@@ -145,40 +165,60 @@ class NER(object):
         ner_start_time = time.time()
         # 这里设为False会报错
         is_raw_text = True
-        tagged_docs, num_entities = \
-            biobert_recognize(self.stm_dict,dict_list, is_raw_text, cur_thread_name)
-        if tagged_docs is None:
+        tagged_docs_list = []
+        for dict_l in dict_list:
+            tagged_docs, num_entities = \
+                biobert_recognize(self.stm_dict,dict_l, is_raw_text, cur_thread_name)
+            tagged_docs_list.append((tagged_docs, num_entities))
+        if tagged_docs_list is None:
             return None
 
-        assert len(tagged_docs) == 1
         ner_time = time.time() - ner_start_time
         elapsed_time_dict['ner'] = round(ner_time, 3)
         print(datetime.now().strftime(self.stm_dict['time_format']),
               '[%s] NER %.3f sec, #entities: %d' %
               (cur_thread_name, ner_time, num_entities))
+        #print(tagged_docs_list)
+        #with open("ceshi_normllllll.list",'w') as ceshide:
+        #    ceshide.write(json.dumps(tagged_docs_list))
+        #return
         
+        #for tagged_docs in tagged_docs_list:
+        #    if tagged_docs is None:
+        #        return None
+        #    assert len(tagged_docs) == 1
+
         # Normalization models
         # 这里需要把load_dict.sh里的三个python脚本和两个jar全部run起来才跑的通
+        os.system('sh load_dicts.sh')
         normalization_time = 0.
-        if num_entities > 0:
-            normalization_start_time = time.time()
-            # print(datetime.now().strftime(time_format),
-            #       '[{}] Normalization models..'.format(cur_thread_name))
-            tagged_docs = self.normalizer.normalize(text_hash, tagged_docs,
-                                                    cur_thread_name,
-                                                    is_raw_text=is_raw_text)
-            normalization_time = time.time() - normalization_start_time
-        elapsed_time_dict['normalization'] = round(normalization_time, 3)
-
-        # Convert to PubAnnotation JSON
-        elapsed_time_dict['total'] = round(time.time() - get_start_t, 3)
-        tagged_docs[0] = get_pub_annotation(tagged_docs[0],
-                                            is_raw_text=is_raw_text,
-                                            elapsed_time_dict=elapsed_time_dict)
-
-        # Save a BERN result
-        with open(bern_output_path, 'w', encoding='utf-8') as f_out:
-            json.dump(tagged_docs[0], f_out, sort_keys=True)
+        new_tagged_docs_list = []
+        for tagged_docs, num_entities in tagged_docs_list:
+            if tagged_docs is None:
+                continue
+            text_hash = tagged_docs[0]['pmid']
+            if num_entities > 0:
+                normalization_start_time = time.time()
+                tagged_docs = self.normalizer.normalize(text_hash, tagged_docs,
+                                                        cur_thread_name,
+                                                        is_raw_text=is_raw_text)
+                normalization_time = time.time() - normalization_start_time
+            elapsed_time_dict['normalization'] = round(normalization_time, 3)
+            # Convert to PubAnnotation JSON
+            elapsed_time_dict['total'] = round(time.time() - get_start_t, 3)
+            tagged_docs[0] = get_pub_annotation(tagged_docs[0],
+                                                is_raw_text=is_raw_text,
+                                                elapsed_time_dict=elapsed_time_dict)
+            new_tagged_docs_list.append(tagged_docs[0])
+            # Save a BERN result
+            bern_output_path = './output/bern_demo_{}.json'.format(text_hash)
+            if reuse and os.path.exists(bern_output_path):
+                print(datetime.now().strftime(self.stm_dict['time_format']),
+                    '[{}] Found prev. output'.format(cur_thread_name))
+                with open(bern_output_path, 'r', encoding='utf-8') as f_out:
+                    return json.load(f_out)
+            with open(bern_output_path, 'w', encoding='utf-8') as f_out:
+                json.dump(tagged_docs[0], f_out, sort_keys=True)
 
         return tagged_docs[0]
 
@@ -201,10 +241,15 @@ def biobert_recognize(stm_dict, dict_list, is_raw_text, cur_thread_name):
                                                  is_raw_text=is_raw_text,
                                                  thread_id=cur_thread_name)
         if res is None:
+            print("dao zhe lai le##################")
             return None, 0
 
         num_filtered_species_per_doc = filter_entities(res, is_raw_text)
         for n_f_spcs in num_filtered_species_per_doc:
+            if len(n_f_spcs) < 2:
+                # list溢出不是这里的问题
+                print("物种统计出了问题")
+                continue
             if n_f_spcs[1] > 0:
                 print(datetime.now().strftime(stm_dict['time_format']),
                       '[{}] Filtered {} species{}'
@@ -299,13 +344,13 @@ class Main:
 
         #delete_files(os.path.join(params.gnormplus_home, 'input'))
         #delete_files(os.path.join(params.tmvar2_home, 'input'))
-        ceshi_pdf = '/home/yg/work/BioNLP/NER_RE_DB/pdf_data/z.R.scholar/data/rs993419_DNMT3B/A_new_and_a_reclassified_ICF_patient_without_mutations_in_DNMT3B_and_its_interacting_proteins_SUMO‐1_and_UBC9.pdf'
+        #ceshi_pdf = '/home/yg/work/BioNLP/NER_RE_DB/pdf_data/z.R.scholar/data/rs993419_DNMT3B/A_new_and_a_reclassified_ICF_patient_without_mutations_in_DNMT3B_and_its_interacting_proteins_SUMO‐1_and_UBC9.pdf'
         ner = NER()
         ner.stm_dict = stm_dict
         ner.normalizer = Normalizer()
-        
-        res = ner.run_pipeline(ceshi_pdf)
-        print(res)
+        input_db_path = '/home/yg/work/BioNLP/NER_RE_DB/pdf_data/z.R.scholar/instance/paper.sqlite'
+        pdf_data_path = '/home/yg/work/BioNLP/NER_RE_DB/pdf_data/z.R.scholar/data'
+        res = ner.run_pipeline(input_db_path, pdf_data_path)
         stm_dict['biobert'].close()
         return
 
