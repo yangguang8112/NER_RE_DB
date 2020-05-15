@@ -3,7 +3,7 @@
 ### 下载数据库
 git clone 这个仓库
 
-然后下载http://60.205.203.207:8081/instance/ner_re.sqlite 数据库文件到仓库内的instance目录下，没有就新建一个
+然后下载https://github.com/yangguang8112/NER_RE_DB/releases/download/v0.02/ner_re.sqlite.gz 数据库文件到仓库内的instance目录下，没有就新建一个
 
 ```sql
 table|paper|paper|1110|CREATE TABLE paper (
