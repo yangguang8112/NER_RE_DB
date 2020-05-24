@@ -184,6 +184,9 @@ def insert_ner(paper_id):
         ' WHERE id = ?',
         (paper_id,)
     ).fetchone()[0]
+    if len(ner_res) < 100:
+        print(paper_id, ner_res)
+        return
     if ner_res == '[{"error": "empty text"}]':
         return
     ner_res = json.loads(ner_res)
