@@ -218,6 +218,9 @@ def insert_re(paper_id):
     text = json.loads(ner_res)['text']
     #print(type(ner_res))
     re_res = run_re(ner_res, './instance/re_dir')
+    if not re_res:
+        print("paper %d no gene-disease" % paper_id)
+        return
     re_type = 'gene-disease'
     
     for re_item in re_res:
@@ -253,6 +256,13 @@ def run_ner_re(paper_ids_file):
         paper_ids = json.loads(pif.read())
     for paper_id in paper_ids:
         insert_ner(paper_id)
+        insert_re(paper_id)
+
+def run_re_db(paper_ids_file):
+    with open(paper_ids_file, 'r') as pif:
+        paper_ids = json.loads(pif.read())
+    #paper_ids = [331,332,334]
+    for paper_id in paper_ids:
         insert_re(paper_id)
     
 

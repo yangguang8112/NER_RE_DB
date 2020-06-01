@@ -5,6 +5,7 @@ import os
 import sys
 import scispacy
 import spacy
+import pandas as pd
 
 
 def sentence_split(str_centence):
@@ -16,6 +17,7 @@ def sentence_split(str_centence):
 def build_re_file(res_ner, test_path):
     db = get_db()
     if res_ner == 'Nothing':
+        print("no data")
         return
     res_ner = json.loads(res_ner)
     #tokens = sent_tokenize(res_ner['text'])
@@ -87,8 +89,9 @@ def build_re_file(res_ner, test_path):
 def run_re(res_ner, test_path):
     check = build_re_file(res_ner, test_path)
     if not check:
+        print("sssss")
         return
-    re_script = './relation_extract/run.sh'
+    re_script = './relation_extract/run_local.sh'
     os.system('sh %s %s' % (re_script, test_path))
     rewrite = open(test_path + '/rewrite.txt', 'r')
     test_res = open(test_path+'/test_results.tsv', 'r')
@@ -96,8 +99,8 @@ def run_re(res_ner, test_path):
     test_list = test_res.readlines()
     re_res = []
     for i in range(len(test_list)):
-        score = float(test_list[i].split('\t')[0])
-        if score > 0.9:
+        score = float(test_list[i].split('\t')[1])
+        if score > 0.5:
             index = rewrite_list[i].strip('\n').split('\t')
             re_res.append({'start':int(index[1]), 'end':int(index[2]), 'score':score, 'obj':'RE',
                             'ner1':index[3], 'ner1_begin':int(index[4]), 'ner1_end':int(index[5]),
