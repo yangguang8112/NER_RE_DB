@@ -213,7 +213,9 @@ def insert_re(paper_id):
         ' WHERE id = ?',
         (paper_id,)
     ).fetchone()[0]
-    if ner_res == '[{"error": "empty text"}]':
+    if ner_res == '[{"error": "empty text"}]' or len(ner_res) < 60:
+        print(ner_res)
+        print("=============paper %d no ner res==============" % paper_id)
         return
     text = json.loads(ner_res)['text']
     #print(type(ner_res))
@@ -258,10 +260,10 @@ def run_ner_re(paper_ids_file):
         insert_ner(paper_id)
         insert_re(paper_id)
 
-def run_re_db(paper_ids_file):
-    with open(paper_ids_file, 'r') as pif:
-        paper_ids = json.loads(pif.read())
-    #paper_ids = [331,332,334]
+def run_re_db(paper_id_min, paper_id_max):
+    #with open(paper_ids_file, 'r') as pif:
+    #    paper_ids = json.loads(pif.read())
+    paper_ids = list(range(paper_id_min,paper_id_max+1))
     for paper_id in paper_ids:
         insert_re(paper_id)
     
