@@ -212,7 +212,12 @@ def insert_re(paper_id, re_type='gene-disease'):
         'SELECT ner_res FROM paper'
         ' WHERE id = ?',
         (paper_id,)
-    ).fetchone()[0]
+    ).fetchone()
+    if not ner_res:
+        print("paper_id %d not found!!!!!" % paper_id)
+        return
+    else:
+        ner_res = ner_res[0]
     if ner_res == '[{"error": "empty text"}]' or len(ner_res) < 60:
         print(ner_res)
         print("=============paper %d no ner res==============" % paper_id)
@@ -224,6 +229,7 @@ def insert_re(paper_id, re_type='gene-disease'):
         #print("paper %d no gene-disease" % paper_id)
         print("paper %d no %s" % (paper_id, re_type))
         return
+    #print(re_res)
     #re_type = 'gene-disease'
     
     for re_item in re_res:
@@ -232,11 +238,17 @@ def insert_re(paper_id, re_type='gene-disease'):
         re_content = text[re_begin:re_end]
         ner1_name = re_item['ner1']
         ner2_name = re_item['ner2']
+        #print('SELECT id FROM NER WHERE paper_id = %d AND ner_begin = %d AND ner_name = %s' % (paper_id, re_item['ner1_begin'], ner1_name))
         ner1_id = db.execute(
             'SELECT id FROM NER'
             ' WHERE paper_id = ? AND ner_begin = ? AND ner_name = ?',
             (paper_id, re_item['ner1_begin'], ner1_name)
-        ).fetchone()[0]
+        ).fetchone()
+        if not ner1_id:
+            print("paper %d not in table NER!!!!!" % (paper_id))
+            return
+        else:
+            ner1_id = ner1_id[0]
         ner2_id = db.execute(
             'SELECT id FROM NER'
             ' WHERE paper_id = ? AND ner_begin = ? AND ner_name = ?',
