@@ -206,7 +206,7 @@ def insert_ner(paper_id):
     return
 
 
-def insert_re(paper_id):
+def insert_re(paper_id, re_type='gene-disease'):
     db = get_db()
     ner_res = db.execute(
         'SELECT ner_res FROM paper'
@@ -219,11 +219,12 @@ def insert_re(paper_id):
         return
     text = json.loads(ner_res)['text']
     #print(type(ner_res))
-    re_res = run_re(ner_res, './instance/re_dir')
+    re_res = run_re(ner_res, './instance/re_dir', re_type)
     if not re_res:
-        print("paper %d no gene-disease" % paper_id)
+        #print("paper %d no gene-disease" % paper_id)
+        print("paper %d no %s" % (paper_id, re_type))
         return
-    re_type = 'gene-disease'
+    #re_type = 'gene-disease'
     
     for re_item in re_res:
         re_begin = re_item['start']
@@ -260,12 +261,12 @@ def run_ner_re(paper_ids_file):
         insert_ner(paper_id)
         insert_re(paper_id)
 
-def run_re_db(paper_id_min, paper_id_max):
+def run_re_db(paper_id_min, paper_id_max, re_type='gene-disease'):
     #with open(paper_ids_file, 'r') as pif:
     #    paper_ids = json.loads(pif.read())
     paper_ids = list(range(paper_id_min,paper_id_max+1))
     for paper_id in paper_ids:
-        insert_re(paper_id)
+        insert_re(paper_id, re_type=re_type)
     
 
 if __name__ == '__main__':

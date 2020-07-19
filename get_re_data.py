@@ -14,7 +14,7 @@ def sentence_split(str_centence):
     sentence_list = [str(i) for i in list(doc.sents)]
     return sentence_list
 
-def build_re_file(res_ner, test_path):
+def build_re_file(res_ner, test_path, re_type='gene-disease'):
     db = get_db()
     if res_ner == 'Nothing':
         print("no data")
@@ -42,9 +42,11 @@ def build_re_file(res_ner, test_path):
         #print(full_text[start:end])
         text_dict.append({'start':start,'end':end,'token':token,'flag':0})
     check_index = 0
+    type_list = re_type.split('-')
     for ner in denotations:
         ner_obj = ner['obj']
-        if ner_obj not in ['disease', 'gene']:
+        #if ner_obj not in ['disease', 'gene']:
+        if ner_obj not in type_list:
             continue
         begin = ner['span']['begin']
         end = ner['span']['end']
@@ -64,14 +66,18 @@ def build_re_file(res_ner, test_path):
     test_file.write("index\tsentence\n")
     index = 0
     for text in text_dict:
-        if 'gene' in text.keys() and 'disease' in text.keys():
+        #if 'gene' in text.keys() and 'disease' in text.keys():
+        if type_list[0] in text.keys() and type_list[1] in text.keys():
             text['flag'] = 1
             token = text['token']
             start, end = text['start'], text['end']
-            gene_start, gene_end = text['gene']
-            d_start, d_end = text['disease']
+            #gene_start, gene_end = text['gene']
+            #d_start, d_end = text['disease']
+            gene_start, gene_end = text[type_list[0]]
+            d_start, d_end = text[type_list[1]]
             new_token = ''
-            if text['gene'] < text['disease']:
+            #if text['gene'] < text['disease']:
+            if text[type_list[0]] < text[type_list[1]]:
                 new_token = token[:gene_start-start] + '@GENE$' + token[gene_end-start:d_start-start] + '@DISEASE$' + token[d_end-start:]
             else:
                 new_token = token[:d_start-start] + '@DISEASE$' + token[d_end-start:gene_start-start] + '@GENE$' + token[gene_end-start:]
@@ -86,8 +92,8 @@ def build_re_file(res_ner, test_path):
     rewrite_file.close()
     return index
 
-def run_re(res_ner, test_path):
-    check = build_re_file(res_ner, test_path)
+def run_re(res_ner, test_path, re_type='gene-disease'):
+    check = build_re_file(res_ner, test_path, re_type=re_type)
     if not check:
         print("sssss")
         return
